@@ -1,52 +1,38 @@
-use std::str::FromStr;
-
 use actix_web::{post, web, HttpResponse};
-use identity::{
-    core::{FromJson, ToJson},
+use identity_iota::{
+    client::{
+        CredentialValidationOptions, CredentialValidator, FailFast, PresentationValidationOptions,
+        ResolvedIotaDocument, Resolver, StatusCheck, SubjectHolderRelationship,
+    },
+    core::{Duration, FromJson, Timestamp, ToJson},
     credential::{Credential, Presentation},
-    iota::{ClientMap, IotaDID},
-    prelude::IotaDocument,
+    did::verifiable::VerifierOptions,
+    iota_core::IotaDID,
 };
 use serde_json::{json, Value};
-use crate::utils_did::validator::CredentialValidation;
-use crate::utils_did::validator::PresentationValidation;
+use std::str::FromStr;
+use uuid::Uuid;
+
 use crate::{
-    jsons_did::{
-        create_did_vm::CreateDidVm, create_vc::CreateVc, create_vp::CreateVp,
-        holder_credential::HolderCredential, holder_presentation::HolderPresentation,
-        remove_vm::RemoveVm,
+    models::models::{
+        CreateDidVm, CreateVc, CreateVp, HolderCredential, HolderPresentation, RemoveVm,
     },
-    utils_did::{common, user::User},
+    utils_did::{
+        common,
+        issuer::{Issuer, IssuerBuilder},
+    },
 };
 
 #[post("/create_did")]
 async fn createDidApi(data_json: web::Json<CreateDidVm>) -> HttpResponse {
     let data = data_json.into_inner();
 
-    let account = User::new(data.nick_name.to_string(), data.password.to_string())
-        .expect("Error Account");
+    let mut accountBuilder =
+        IssuerBuilder::new(data.nick_name.to_string(), data.password.to_string())
+            .await
+            .expect("Error Account");
 
-    let identity = account.create_identity().unwrap();
-    let iota_did: &IotaDID = identity.try_did().unwrap();
-
-    let explorer = iota_did
-        .network()
-        .unwrap()
-        .explorer_url()
-        .unwrap()
-        .to_string();
-    println!(
-        "[Example] Explore the DID Document = {}/{}",
-        iota_did
-            .network()
-            .unwrap()
-            .explorer_url()
-            .unwrap()
-            .to_string(),
-        iota_did.to_string()
-    );
-
-    let explorer = format!("{}/{}", explorer, iota_did.to_string());
+    let iota_did = accountBuilder.create_identity().await.unwrap();
 
     HttpResponse::Ok()
         .content_type("application/json")
@@ -54,7 +40,6 @@ async fn createDidApi(data_json: web::Json<CreateDidVm>) -> HttpResponse {
           "Error": false,
           "Status": "Did Created",
           "did": iota_did,
-          "Explorer": explorer,
         }))
 }
 
@@ -62,40 +47,28 @@ async fn createDidApi(data_json: web::Json<CreateDidVm>) -> HttpResponse {
 async fn addVerifMethodApi(data_json: web::Json<CreateDidVm>) -> HttpResponse {
     let data = data_json.into_inner();
     let iota_did = IotaDID::from_str(&data.did.unwrap()).unwrap();
-
-    let mut account = User::new(
+    let mut account = match Issuer::load_account(
         data.nick_name.to_string(),
         data.password.to_string(),
+        iota_did,
     )
-    .expect("Error Account");
-
-    let vm_randon = account.create_method(&iota_did).unwrap();
-
-    let explorer = iota_did
-        .network()
-        .unwrap()
-        .explorer_url()
-        .unwrap()
-        .to_string();
-    println!(
-        "[Example] Explore the DID Document = {}/{}",
-        iota_did
-            .network()
-            .unwrap()
-            .explorer_url()
-            .unwrap()
-            .to_string(),
-        iota_did.to_string()
-    );
-
-    let explorer = format!("{}/{}", explorer, iota_did.to_string());
+    .await
+    {
+        Ok(v) => v,
+        Err(_e) => {
+            return HttpResponse::NotFound().json(json!({
+                "error": true,
+                "message": "DID Not Found"
+            }))
+        }
+    };
+    let vm_randon = account.create_method().await.unwrap();
 
     HttpResponse::Ok()
         .content_type("application/json")
         .json(json!({
           "Error": false,
           "Status": "Method Created",
-          "Explorer": explorer,
           "vm_name": vm_randon
         }))
 }
@@ -106,33 +79,34 @@ async fn createVcApi(data_json: web::Json<CreateVc>) -> HttpResponse {
     let data_issuer = data.issuer;
     let iota_did = IotaDID::from_str(&data_issuer.did.unwrap()).unwrap();
 
-    let account = User::new(
+    let account = match Issuer::load_account(
         data_issuer.nick_name.to_string(),
-        data_issuer.password.to_string()
+        data_issuer.password.to_string(),
+        iota_did.clone(),
     )
-    .expect("Error Account");
+    .await
+    {
+        Ok(v) => v,
+        Err(_e) => {
+            return HttpResponse::NotFound().json(json!({
+                "error": true,
+                "message": "DID Not Found"
+            }))
+        }
+    };
 
     let data_holder = data.holder;
 
-    let mut credential: Credential =
-        common::issue_degree(&iota_did, &data_holder).unwrap();
-
-    account.sign_c(&iota_did, &data_issuer.vm_name.unwrap(), &mut credential);
-
-    // println!("credential: {:#}", credential);
-
-    let resolved: IotaDocument = account.resolve_identity(&iota_did).unwrap();
-
-    let verified: bool = resolved.verify_data(&credential).is_ok();
-
-    if verified == false {
-        return HttpResponse::Ok()
-            .content_type("application/json")
-            .json(json!({
-              "Error": true,
-              "Verified": verified,
-            }));
-    }
+    let mut credential: Credential = common::issuer_degree(&iota_did, &data_holder).unwrap();
+    let challenge = Uuid::new_v4();
+    account
+        .sign_c(
+            &data_issuer.vm_name.unwrap(),
+            &mut credential,
+            &data.expires,
+            challenge.to_string(),
+        )
+        .await;
 
     let credential_str = credential.clone().to_json().unwrap();
     let credential_json: Value = serde_json::from_str(&credential_str).unwrap();
@@ -142,32 +116,62 @@ async fn createVcApi(data_json: web::Json<CreateVc>) -> HttpResponse {
         .json(json!({
           "Error": false,
           "Status": "Credential Created",
-          "Verified": verified,
-          "Credential": credential_json
+          "Credential": credential_json,
+          "challenge": challenge.to_string(),
         }))
 }
 
 #[post("/verify_validity_credential")]
 pub async fn verifyValidityApiCred(data_json: web::Json<HolderCredential>) -> HttpResponse {
-    let client: ClientMap = ClientMap::new();
+    let data = data_json.into_inner();
+    let credential: Credential =
+        Credential::from_json(&serde_json::to_string(&data.holderCredential).unwrap()).unwrap();
 
-    let validation: CredentialValidation = common::check_credential(&client, data_json).unwrap();
+    let credential_verifier_options: VerifierOptions = VerifierOptions::new()
+        .challenge(data.challenge)
+        .allow_expired(false);
 
-    if validation.verified == false {
-        return HttpResponse::Ok()
-            .content_type("application/json")
-            .json(json!({
-              "Error": true,
-              "validation": validation.verified,
-            }));
+    let credential_validation_options = CredentialValidationOptions::default()
+        .verifier_options(credential_verifier_options)
+        .status_check(StatusCheck::Strict);
+
+    let resolver: Resolver = Resolver::new().await.unwrap();
+    let resolved_issuer_doc: ResolvedIotaDocument =
+        match resolver.resolve_credential_issuer(&credential).await {
+            Ok(doc) => doc,
+            Err(_e) => {
+                return HttpResponse::Ok()
+                    .content_type("application/json")
+                    .json(json!({
+                      "error": true,
+                      "status": "Invalid document".to_string(),
+                    }))
+            }
+        };
+
+    match CredentialValidator::validate(
+        &credential,
+        &resolved_issuer_doc,
+        &credential_validation_options,
+        identity_iota::client::FailFast::FirstError,
+    ) {
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .content_type("application/json")
+                .json(json!({
+                  "error": false,
+                  "status": "verified".to_string(),
+                }))
+        }
+        Err(_e) => {
+            return HttpResponse::Ok()
+                .content_type("application/json")
+                .json(json!({
+                  "error": true,
+                  "status": "Invalid credential".to_string(),
+                }))
+        }
     }
-
-    HttpResponse::Ok()
-        .content_type("application/json")
-        .json(json!({
-          "error": false,
-          "validation": validation.verified,
-        }))
 }
 
 #[post("/create_vp")]
@@ -176,37 +180,37 @@ pub async fn createVpApi(data_json: web::Json<CreateVp>) -> HttpResponse {
     let data_holder = data.holder;
     let iota_did = IotaDID::from_str(&data_holder.did.unwrap()).unwrap();
 
-    let account = User::new(
+    let account = match Issuer::load_account(
         data_holder.nick_name.to_string(),
         data_holder.password.to_string(),
+        iota_did.clone(),
     )
-    .expect("Error Account");
+    .await
+    {
+        Ok(v) => v,
+        Err(_e) => {
+            return HttpResponse::NotFound().json(json!({
+                "error": true,
+                "message": "DID Not Found"
+            }))
+        }
+    };
 
     let data_holder_c = serde_json::to_string(&data.holder_credential).unwrap();
 
     let credential: Credential = Credential::from_json(&data_holder_c).unwrap();
 
-    // println!("Credential Validation > {:#?}", validation);
-
     let mut presentation: Presentation =
         common::holder_presentation(&iota_did, credential).unwrap();
-
-    account.sign_p(&iota_did, &data_holder.vm_name.unwrap(), &mut presentation);
-
-    // println!("presentation: {:#}", presentation);
-
-    let resolved: IotaDocument = account.resolve_identity(&iota_did).unwrap();
-
-    let verified: bool = resolved.verify_data(&presentation).is_ok();
-
-    if verified == false {
-        return HttpResponse::Ok()
-            .content_type("application/json")
-            .json(json!({
-              "Error": true,
-              "Verified": verified,
-            }));
-    }
+    let challenge = uuid::Uuid::new_v4();
+    account
+        .sign_p(
+            &data_holder.vm_name.unwrap(),
+            &mut presentation,
+            &data.expires,
+            challenge.to_string(),
+        )
+        .await;
 
     let presentation_str = presentation.clone().to_json().unwrap();
     let presentation_json: Value = serde_json::from_str(&presentation_str).unwrap();
@@ -216,33 +220,63 @@ pub async fn createVpApi(data_json: web::Json<CreateVp>) -> HttpResponse {
         .json(json!({
           "Error": false,
           "Status": "Presentation Created",
-          "verified": verified,
-          "Presentation": presentation_json
+          "Presentation": presentation_json,
+          "challenge": challenge.to_string(),
         }))
 }
 
 #[post("/verify_validity_presentation")]
 pub async fn verifyValidityApiPres(data_json: web::Json<HolderPresentation>) -> HttpResponse {
-    let client: ClientMap = ClientMap::new();
+    let data = data_json.into_inner();
+    let presentation: Presentation =
+        Presentation::from_json(&serde_json::to_string(&data.holderPresentation).unwrap()).unwrap();
 
-    let validation: PresentationValidation =
-        common::check_presentation(&client, data_json).unwrap();
+    let presentation_verifier_options: VerifierOptions = VerifierOptions::new()
+        .challenge(data.challenge)
+        .allow_expired(false);
 
-    if validation.verified == false {
-        return HttpResponse::Ok()
-            .content_type("application/json")
-            .json(json!({
-              "Error": true,
-              "validation": validation.verified,
-            }));
+    // Do not allow credentials that expire within the next 10 hours.
+    let credential_validation_options: CredentialValidationOptions =
+        CredentialValidationOptions::default().earliest_expiry_date(
+            Timestamp::now_utc()
+                .checked_add(Duration::hours(10))
+                .unwrap(),
+        );
+
+    let presentation_validation_options = PresentationValidationOptions::default()
+        .presentation_verifier_options(presentation_verifier_options.clone())
+        .shared_validation_options(credential_validation_options)
+        .subject_holder_relationship(SubjectHolderRelationship::AlwaysSubject);
+
+    // Validate the presentation and all the credentials included in it.
+    let resolver: Resolver = Resolver::new().await.unwrap();
+    match resolver
+        .verify_presentation(
+            &presentation,
+            &presentation_validation_options,
+            FailFast::FirstError,
+            None,
+            None,
+        )
+        .await
+    {
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .content_type("application/json")
+                .json(json!({
+                  "error": false,
+                  "status": "verified",
+                }))
+        }
+        Err(_e) => {
+            return HttpResponse::Ok()
+                .content_type("application/json")
+                .json(json!({
+                  "error": true,
+                  "status": "Invalid presentation".to_string(),
+                }))
+        }
     }
-
-    HttpResponse::Ok()
-        .content_type("application/json")
-        .json(json!({
-          "error": false,
-          "validation": validation.verified,
-        }))
 }
 
 #[post("/remove_vm")]
@@ -251,13 +285,23 @@ async fn removeVmApi(data_json: web::Json<RemoveVm>) -> HttpResponse {
     let data_issuer = data.issuer;
     let iota_did = IotaDID::from_str(&data_issuer.did.unwrap()).unwrap();
 
-    let mut account = User::new(
+    let mut account = match Issuer::load_account(
         data_issuer.nick_name.to_string(),
         data_issuer.password.to_string(),
+        iota_did,
     )
-    .expect("Error Account");
+    .await
+    {
+        Ok(v) => v,
+        Err(_e) => {
+            return HttpResponse::NotFound().json(json!({
+                "error": true,
+                "message": "DID Not Found"
+            }))
+        }
+    };
 
-    account.delete_method(&iota_did, data_issuer.vm_name.unwrap());
+    account.delete_method(data_issuer.vm_name.unwrap()).await;
 
     HttpResponse::Ok()
         .content_type("application/json")

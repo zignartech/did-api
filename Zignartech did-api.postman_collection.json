@@ -1,0 +1,321 @@
+{
+	"info": {
+		"_postman_id": "78981af8-1210-4a7f-a9f8-36b45ac4b929",
+		"name": "Zignartech did-api",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15905511"
+	},
+	"item": [
+		{
+			"name": "Create Did",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"nick_name\": \"Alice\",\r\n    \"password\": \"1234\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/create_did",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"create_did"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Verif Method",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"nick_name\": \"Alice\",\r\n    \"password\": \"1234\",\r\n    \"did\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/add_verif_method",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"add_verif_method"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create VC",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"issuer\": {\r\n        \"nick_name\": \"Alice\",\r\n        \"password\": \"1234\",\r\n        \"did\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ\",\r\n        \"vm_name\": \"VWU9DFPM\"\r\n    },\r\n    \"holder\": {\r\n        \"id\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV\",\r\n        \"name\": \"Alice\",\r\n        \"degreeName\": \"Bachelor of Computer Science\",\r\n        \"degreeType\": \"BachelorDegree\",\r\n        \"GPA\": \"4.0\"\r\n    }, \r\n    \"expires\": \"2022-09-06T21:29:17+00:00\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/create_vc",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"create_vc"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Verify Validity Credential",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"holderCredential\": {\r\n    \"@context\": \"https://www.w3.org/2018/credentials/v1\",\r\n    \"credentialSubject\": {\r\n        \"GPA\": \"4.0\",\r\n        \"degreeName\": \"Bachelor of Computer Science\",\r\n        \"degreeType\": \"BachelorDegree\",\r\n        \"id\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV\",\r\n        \"name\": \"Alice\"\r\n    },\r\n    \"id\": \"https://example.edu/credentials/3732\",\r\n    \"issuanceDate\": \"2022-09-05T21:30:30Z\",\r\n    \"issuer\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ\",\r\n    \"proof\": {\r\n        \"challenge\": \"be1af54f-5928-4242-8b41-c0808f630917\",\r\n        \"expires\": \"2022-09-06T21:29:17Z\",\r\n        \"signatureValue\": \"3L4zZrA6LPGpuKVeSA6cadQ9273e533Jev1MyKSUnrXPAfmFKS3txVjsjeRZXVPkJqMp35E2FmHzUPEnKXHxnjzz\",\r\n        \"type\": \"JcsEd25519Signature2020\",\r\n        \"verificationMethod\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ#PNNFGVLJ\"\r\n    },\r\n    \"type\": [\r\n        \"VerifiableCredential\",\r\n        \"UniversityDegreeCredential\"\r\n    ]\r\n},\r\n\"challenge\": \"be1af54f-5928-4242-8b41-c0808f630917\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/verify_validity_credential",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"verify_validity_credential"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create VP",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"holder\": {\r\n        \"nick_name\": \"Alice\",\r\n        \"password\": \"1234\",\r\n        \"did\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV\",\r\n        \"vm_name\": \"NFQQGYUD\"\r\n    },\r\n    \"holder_credential\": {\r\n    \"@context\": \"https://www.w3.org/2018/credentials/v1\",\r\n    \"credentialSubject\": {\r\n        \"GPA\": \"4.0\",\r\n        \"degreeName\": \"Bachelor of Computer Science\",\r\n        \"degreeType\": \"BachelorDegree\",\r\n        \"id\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV\",\r\n        \"name\": \"Alice\"\r\n    },\r\n    \"id\": \"https://example.edu/credentials/3732\",\r\n    \"issuanceDate\": \"2022-09-05T21:30:30Z\",\r\n    \"issuer\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ\",\r\n    \"proof\": {\r\n        \"challenge\": \"be1af54f-5928-4242-8b41-c0808f630917\",\r\n        \"expires\": \"2022-09-06T21:29:17Z\",\r\n        \"signatureValue\": \"3L4zZrA6LPGpuKVeSA6cadQ9273e533Jev1MyKSUnrXPAfmFKS3txVjsjeRZXVPkJqMp35E2FmHzUPEnKXHxnjzz\",\r\n        \"type\": \"JcsEd25519Signature2020\",\r\n        \"verificationMethod\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ#PNNFGVLJ\"\r\n    },\r\n    \"type\": [\r\n        \"VerifiableCredential\",\r\n        \"UniversityDegreeCredential\"\r\n    ]\r\n},\r\n\"expires\": \"2022-09-06T21:29:17Z\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/create_vp",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"create_vp"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Verify Validity Presentation",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"holderPresentation\": {\r\n        \"@context\": \"https://www.w3.org/2018/credentials/v1\",\r\n        \"holder\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV\",\r\n        \"proof\": {\r\n            \"challenge\": \"fb562dec-a7a6-4459-b081-abc95d4a4776\",\r\n            \"expires\": \"2022-09-06T21:29:17Z\",\r\n            \"signatureValue\": \"4nDWB8KVKyLCi1Urgabjmoc4N6L8WDedqkpY2Zt6Z5DCo39bLHvS1aCjSQZbYBzVKtrQzccPaLVQMWz1mngAGuKW\",\r\n            \"type\": \"JcsEd25519Signature2020\",\r\n            \"verificationMethod\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV#NFQQGYUD\"\r\n        },\r\n        \"type\": \"VerifiablePresentation\",\r\n        \"verifiableCredential\": {\r\n            \"@context\": \"https://www.w3.org/2018/credentials/v1\",\r\n            \"credentialSubject\": {\r\n                \"GPA\": \"4.0\",\r\n                \"degreeName\": \"Bachelor of Computer Science\",\r\n                \"degreeType\": \"BachelorDegree\",\r\n                \"id\": \"did:iota:3EeN3pHeqiv7KWafs6MMJmZXbrDrFYSHTRqfojSvhSeV\",\r\n                \"name\": \"Alice\"\r\n            },\r\n            \"id\": \"https://example.edu/credentials/3732\",\r\n            \"issuanceDate\": \"2022-09-05T21:30:30Z\",\r\n            \"issuer\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ\",\r\n            \"proof\": {\r\n                \"challenge\": \"be1af54f-5928-4242-8b41-c0808f630917\",\r\n                \"expires\": \"2022-09-06T21:29:17Z\",\r\n                \"signatureValue\": \"3L4zZrA6LPGpuKVeSA6cadQ9273e533Jev1MyKSUnrXPAfmFKS3txVjsjeRZXVPkJqMp35E2FmHzUPEnKXHxnjzz\",\r\n                \"type\": \"JcsEd25519Signature2020\",\r\n                \"verificationMethod\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ#PNNFGVLJ\"\r\n            },\r\n            \"type\": [\r\n                \"VerifiableCredential\",\r\n                \"UniversityDegreeCredential\"\r\n            ]\r\n        }\r\n    },\r\n    \"challenge\": \"fb562dec-a7a6-4459-b081-abc95d4a4776\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/verify_validity_presentation",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"verify_validity_presentation"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Remove VM",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"issuer\": {\r\n        \"nick_name\": \"University\",\r\n        \"password\": \"1234\",\r\n        \"did\": \"did:iota:7ZNvztESafCotHyuMKS6Ruevbpvwg7z7cfXzqAnwrAJ\",\r\n        \"vm_name\": \"PNNFGVLJ\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/remove_vm",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"remove_vm"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "address",
+			"value": ""
+		},
+		{
+			"key": "randomSeed",
+			"value": ""
+		},
+		{
+			"key": "Address",
+			"value": ""
+		},
+		{
+			"key": "Body",
+			"value": ""
+		},
+		{
+			"key": "Author",
+			"value": ""
+		},
+		{
+			"key": "Subscriptor",
+			"value": ""
+		},
+		{
+			"key": "sendingSeed",
+			"value": ""
+		},
+		{
+			"key": "Subscriber",
+			"value": ""
+		},
+		{
+			"key": "psk",
+			"value": ""
+		}
+	]
+}

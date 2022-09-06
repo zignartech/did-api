@@ -15,12 +15,42 @@ As described [here](https://www.iota.org/solutions/digital-identity), IOTA Ident
 ### Flow-Chart
 ![banner](./identity_tutorial_chart.png)
 
+### Setup with docker-compose
+
+If you are developing something new using this code, we recommend using the `docker-compose.dev.yml`
+1. Clone this repository => https://github.com/zignartech/did-api
+2. Then, run this
+```
+docker-compose -f docker-compose.dev.yml up --build -d
+```
+If you just want to test and use it, use the `docker-compose.yml`
+1. Create the `docker-compose.yml` file
+2. Put this content
+```yml
+version: '3.3'
+
+services:
+
+  did-api:
+    container_name: did-api
+    image: zignartech/did-api:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./accounts_stronghold/:/opt/did-api/accounts_stronghold/
+      - ./.env/:/opt/did-api/.env
+```
+3. Then, run this
+```
+docker-compose up -d
+```
 
 ### Steps
 In this process, you will complete the different steps from the perspective of one of the mentioned roles above:
 
 1. **Holder:** Create a DID (Decentralized Identifier) document for Alice.
-     - **POST** => http://localhost:6000/create_did
+     - **POST** => http://localhost:8080/create_did
     ```json
     {
         "nick_name": "Alice",
@@ -38,7 +68,7 @@ In this process, you will complete the different steps from the perspective of o
     ```
 
 2. **Issuer:** Create a DID document for the University of Oslo.
-    - **POST** => http://localhost:6000/create_did
+    - **POST** => http://localhost:8080/create_did
     ```json
     {
         "nick_name": "University of Oslo",
@@ -57,7 +87,7 @@ In this process, you will complete the different steps from the perspective of o
     ```
 
 3. **Issuer:** Add a verification method "degreeVerifications" to the University's DID document with the purpose to verify Alice's degree. Since it's expected, that the University will have to sign more than just Alice's degree.
-    - **POST** => http://localhost:6000/add_verif_method
+    - **POST** => http://localhost:8080/add_verif_method
     ```json
     {
         "nick_name": "University of Oslo",
@@ -76,7 +106,7 @@ In this process, you will complete the different steps from the perspective of o
     ```
 
 4. **Holder:** Add a verification method to Alice's DID document with the purpose to present her degree to a third party.
-    - **POST** => http://localhost:6000/add_verif_method
+    - **POST** => http://localhost:8080/add_verif_method
     ```json
     {
         "nick_name": "Alice",
@@ -107,7 +137,7 @@ In this process, you will complete the different steps from the perspective of o
     ```
 
 6. **Issuer:** Sign the degree document with the University's verification method to obtain a verifiable credential.
-    - **POST** => http://localhost:6000/create_vc
+    - **POST** => http://localhost:8080/create_vc
     ```json
     {
         "issuer": {
@@ -122,7 +152,8 @@ In this process, you will complete the different steps from the perspective of o
             "degreeName": "Bachelor of Computer Science",
             "degreeType": "BachelorDegree",
             "GPA": "4.0"
-        }
+        }, 
+        "expires": "2022-09-06T21:29:17+00:00"
     }
     ```
     **Response**
@@ -138,33 +169,36 @@ In this process, you will complete the different steps from the perspective of o
             },
         "Error": false,
         "Status": "Credential Created",
-        "Verified": true
+        "challenge": "be1af54f-5928-4242-8b41-c0808f630917"
     }
     ```
 
 7. **Holder:** Alice verifies the credentials to make sure it was actually signed by a key associated to the University DID.
-    - **POST** => http://localhost:6000/verify_validity_credential
+    - **POST** => http://localhost:8080/verify_validity_credential
 
     ```json
     {
+        "holderCredential": {
         "@context": "https://www.w3.org/2018/credentials/v1",
         "credentialSubject": {
             "GPA": "4.0",
             ...
-        }
+            }
         ...
+        },
+        "challenge": "be1af54f-5928-4242-8b41-c0808f630917"
     }
     ```
     **Response**
     ```json
     {
        "error": false,
-        "validation": true
+       "status": "verified"
     }
     ```
 
 8. **Holder:** Alice signs verifiable credential with private key of Alices's verification method in order to get a verifiable presentation.
-    - **POST** => http://localhost:6000/create_vp
+    - **POST** => http://localhost:8080/create_vp
     ```json
     {
         "holder": {
@@ -180,7 +214,8 @@ In this process, you will complete the different steps from the perspective of o
                 ...
             }
             ...
-        }
+        },
+        "expires": "2022-09-06T21:29:17Z"
     }
     ```
     **Response**
@@ -197,15 +232,16 @@ In this process, you will complete the different steps from the perspective of o
             },
         "Error": false,
         "Status": "Presentation Created",
-        "Verified": true
+        "challenge": "fb562dec-a7a6-4459-b081-abc95d4a4776"
     }
     ```
 
 9. **Verifier:** The IOTA Foundation verfies Alice's and the University's signatures with their respective public keys by checking the verifiable presentation.
-    - **POST** => http://localhost:6000/verify_validity_presentation
+    - **POST** => http://localhost:8080/verify_validity_presentation
 
     ```json
     {
+        "holderPresentation": {
         "@context": "https://www.w3.org/2018/credentials/v1",
         "holder": "did:iota:6jAqUhoszQ79fWfx87Ga7o4TxkLcK6uBTm7LE2k26dAR",
             "proof": {
@@ -213,18 +249,20 @@ In this process, you will complete the different steps from the perspective of o
                     ...
             }
         ...
+        },
+        "challenge": "fb562dec-a7a6-4459-b081-abc95d4a4776"
     }
     ```
     **Response**
     ```json
     {
        "error": false,
-        "validation": true
+       "status": "verified"
     }
     ```
 
 10. **Issuer:** Unfortunately, the University found out that Alice was cheating on her final exam. Therefore, the University revokes the verification of Alice's credential. Removing the verification method. Note that Alice could also revoke her signature on the verifiable presentation, removing the verification method from her.
-    - **POST** => http://localhost:6000/remove_vm
+    - **POST** => http://localhost:8080/remove_vm
     
     ```json
     {
@@ -245,10 +283,11 @@ In this process, you will complete the different steps from the perspective of o
     ```
 
 11. **Verifier:** The IOTA Foundation verifies Alice's and the University's signatures again by checking the verifiable presentation and finds out that the University revoked their signature.
-    - **POST** => http://localhost:6000/verify_validity_presentation
+    - **POST** => http://localhost:8080/verify_validity_presentation
 
     ```json
     {
+        "holderPresentation": {
         "@context": "https://www.w3.org/2018/credentials/v1",
         "holder": "did:iota:6jAqUhoszQ79fWfx87Ga7o4TxkLcK6uBTm7LE2k26dAR",
             "proof": {
@@ -256,12 +295,14 @@ In this process, you will complete the different steps from the perspective of o
                     ...
             }
         ...
+        },
+        "challenge": "fb562dec-a7a6-4459-b081-abc95d4a4776"
     }
     ```
     **Response**
     ```json
     {
         "Error": true,
-        "validation": false
+        "status": "Invalid presentation"
     }
     ```

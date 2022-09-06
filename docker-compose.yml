@@ -1,0 +1,15 @@
+version: '3.3'
+
+services:
+
+  did-api:
+    container_name: did-api
+    image: zignartech/did-api:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./accounts_stronghold/:/opt/did-api/accounts_stronghold/
+      - ./.env/:/opt/did-api/.env
+
+# docker-compose up -d

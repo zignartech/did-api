@@ -1,20 +1,28 @@
-FROM rust:latest
+FROM rust:latest AS builder
 
-WORKDIR /opt/api-did
+WORKDIR /opt/did-api
 
-COPY --chown=root:root src /opt/api-did/src
-COPY --chown=root:root accounts_stronghold /opt/api-did
-COPY Cargo.toml /opt/api-did
+COPY src /opt/did-api/src
+
+COPY Cargo.toml /opt/did-api
+COPY Cargo.lock /opt/did-api
 
 RUN cargo build --release
 
-WORKDIR /opt/api-did/target/release/
+FROM debian:latest
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
 
-RUN chmod +X api-did
+WORKDIR /opt/did-api
 
-COPY development.env /opt/api-did/target/release/
+COPY --from=builder \
+    /opt/did-api/target/release/did-api \
+    ./
 
-ENTRYPOINT ["/opt/api-did/target/release/api-did"]
+RUN chmod +X did-api
 
-# docker build -t api-did-parse .
-# docker run -p 6000:6000 api-did-parse
+ENTRYPOINT ["/opt/did-api/did-api"]
+
+# docker build -t did-api .
+# docker run -d -p 8080:8080 did-api

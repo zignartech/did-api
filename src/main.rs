@@ -1,9 +1,10 @@
 #![allow(non_snake_case)]
 use actix_cors::Cors;
+// use actix_web::middleware::Logger;
 use actix_web::{http::header, App, HttpServer};
 mod app_service;
-mod jsons_did;
 mod utils_did;
+mod models;
 use crate::app_service::createDidApi;
 use crate::app_service::createVcApi;
 use crate::app_service::createVpApi;
@@ -13,8 +14,13 @@ use crate::app_service::verifyValidityApiPres;
 use crate::app_service::addVerifMethodApi;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Logger
+    // std::env::set_var("RUST_LOG", "debug");
+    // std::env::set_var("RUST_BACKTRACE", "1");
+    // env_logger::init();
+
     // init env vars
-    dotenv::from_path("./development.env").ok();
+    dotenv::from_path("./.env").ok();
 
     // building address and ip
     let port = std::env::var("PORT_API").unwrap_or("8080".to_string());
@@ -29,7 +35,9 @@ async fn main() -> std::io::Result<()> {
     println!("Frontend Cors => {}", host_cors);
 
     let server = HttpServer::new(move || {
+        // let logger = Logger::default();
         App::new()
+        // .wrap(logger)
             .wrap(
                 Cors::default()
                     .allowed_origin(&host_cors)
